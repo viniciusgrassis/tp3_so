@@ -35,7 +35,7 @@ void init(){
 
     uint8_t empty_cluster[CLUSTER_SIZE];
     memset(empty_cluster, 0x00, CLUSTER_SIZE);
-    for (int i = 0; i < CLUSTER_SIZE; i++) {
+    for (int i = 0; i < DATA_CLUSTERS; i++) {
         fwrite(empty_cluster, CLUSTER_SIZE, 1, f);
     }
 
