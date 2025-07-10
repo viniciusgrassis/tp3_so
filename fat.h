@@ -34,6 +34,8 @@ union{
 
 
 void init();
+void load();
+void ls();
 
 
 
