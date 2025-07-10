@@ -104,7 +104,7 @@ int main(){
     char comando[100];
     char argumento[100];
     while(1){
-        printf("\n> ");
+        printf("> ");
         scanf("%s", comando);
         if(strcmp(comando, "init") == 0){
             init();
