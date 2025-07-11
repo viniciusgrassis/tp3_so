@@ -1,9 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "fat.h"
 
+uint16_t fat[NUM_CLUSTERS];
+data_cluster_t data_cluster;
 int sistema_carregado = 0;
 
 void init(){
@@ -125,15 +123,13 @@ void create(char *filename){
     int entradas_por_cluster = CLUSTER_SIZE / sizeof(dir_entry_t);
 
     for(int i = 0; i < entradas_por_cluster; i++){
-        if(data_cluster.dir[i].filename[0] == 0x00){
-            if(strcmp((char*)data_cluster.dir[i].filename, filename) == 0){
-                printf("Erro: Arquivo ou diretório '%s' já existe!\n", filename);
-                fclose(f);
-                return;
-            }
-            if(data_cluster.dir[i].filename[0] == 0x00 && entrada_livre_idx == -1){
-                entrada_livre_idx = i;
-            }
+        if(data_cluster.dir[i].filename[0] != 0x00 && strcmp((char*)data_cluster.dir[i].filename, filename) == 0){
+            printf("Erro: Arquivo ou diretório '%s' já existe!\n", filename);
+            fclose(f);
+            return;
+        }
+        if(data_cluster.dir[i].filename[0] == 0x00 && entrada_livre_idx == -1){
+            entrada_livre_idx = i;
         }
     }
 
@@ -319,58 +315,4 @@ void unlink(char *name){
     fwrite(&data_cluster, CLUSTER_SIZE, 1, f);
 
     fclose(f);
-}
-
-//-----------------------------------------------------
-
-int main(){
-
-    char linha_inteira[200];
-    char comando[100];
-    char argumento[100];
-
-    while(1){
-        printf("> ");
-
-        if(fgets(linha_inteira, sizeof(linha_inteira), stdin) == NULL){
-            break;
-        }
-
-        memset(comando, 0, sizeof(comando));
-        memset(argumento, 0, sizeof(argumento));
-
-        sscanf(linha_inteira, "%s %s", comando, argumento);
-
-        if(strcmp(comando, "init") == 0){
-            init();
-        }else if(strcmp(comando, "load") == 0){
-            load();
-        }else if(strcmp(comando, "ls") == 0){
-            ls();
-        }else if(strcmp(comando, "create") == 0){
-            if(strlen(argumento) == 0){
-                printf("O comando create requer um nome de arquivo!\n");
-            }else{
-                create(argumento);
-            }
-        }else if(strcmp(comando, "mkdir") == 0){
-            if(strlen(argumento) == 0){
-                printf("O comando mkdir requer um nome de diretório!\n");
-            }else{
-                mkdir(argumento);
-            }
-        }else if(strcmp(comando, "unlink") == 0){
-            if(strlen(argumento) == 0){
-                printf("O comando unlink requer um nome de arquivo ou diretório!\n");
-            }else{
-                unlink(argumento);
-            }
-        }else if(strcmp(comando, "exit") == 0){
-            printf("Saindo...\n");
-            break; 
-        }else if(strlen(comando) > 0){
-            printf("Comando desconhecido: %s\n", comando);
-        }
-    }
-    return 0;
 }
