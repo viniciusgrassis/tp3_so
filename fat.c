@@ -242,6 +242,84 @@ void mkdir(char *dirname){
     printf("Diretório '%s' criado com sucesso.\n", dirname);
 }
 
+// Substitua sua função unlink inteira por esta
+void unlink(char *name){
+    if(!sistema_carregado){
+        printf("Sistema de arquivos não carregado. Execute 'load' primeiro.\n");
+        return;
+    }
+
+    FILE *f = fopen("fat.part", "r+b");
+    if(f == NULL){
+        perror("Erro ao abrir o arquivo fat.part");
+        return;
+    }
+
+    long int offset_raiz = 9 * CLUSTER_SIZE;
+    fseek(f, offset_raiz, SEEK_SET);
+    fread(&data_cluster, CLUSTER_SIZE, 1, f);
+
+    int target_idx = -1;
+    int entradas_por_cluster = CLUSTER_SIZE / sizeof(dir_entry_t);
+    for(int i = 0; i < entradas_por_cluster; i++){
+        if(data_cluster.dir[i].filename[0] != 0x00 &&
+            strcmp((char*)data_cluster.dir[i].filename, name) == 0){
+            target_idx = i;
+            break;
+        }
+    }
+
+    if(target_idx == -1){
+        printf("Erro: Arquivo ou diretorio '%s' nao encontrado.\n", name);
+        fclose(f);
+        return;
+    }
+
+    dir_entry_t *entry = &data_cluster.dir[target_idx];
+    
+    if(entry->attributes == 0){ 
+        uint16_t current_cluster = entry->first_block;
+        while(current_cluster != 0 && current_cluster != FAT_EOF){
+            uint16_t next_cluster = fat[current_cluster];
+            fat[current_cluster] = FAT_CLUSTER_LIVRE;
+            current_cluster = next_cluster;
+        }
+        write_fat(); 
+        printf("Arquivo '%s' apagado.\n", name);
+
+    }else{ 
+        uint8_t temp_dir_cluster[CLUSTER_SIZE];
+        dir_entry_t *dir_content = (dir_entry_t*) temp_dir_cluster; 
+
+        fseek(f, entry->first_block * CLUSTER_SIZE, SEEK_SET);
+        fread(temp_dir_cluster, CLUSTER_SIZE, 1, f);
+        
+        int not_empty = 0;
+        for(int i = 0; i < entradas_por_cluster; i++){
+            if(dir_content[i].filename[0] != 0x00){ 
+                not_empty = 1;
+                break;
+            }
+        }
+
+        if(not_empty){
+            printf("Erro: O diretorio '%s' nao esta vazio.\n", name);
+            fclose(f);
+            return;
+        }
+        
+        fat[entry->first_block] = FAT_CLUSTER_LIVRE;
+        write_fat();
+        printf("Diretorio '%s' apagado.\n", name);
+    }
+
+    memset(entry, 0, sizeof(dir_entry_t));
+
+    fseek(f, offset_raiz, SEEK_SET);
+    fwrite(&data_cluster, CLUSTER_SIZE, 1, f);
+
+    fclose(f);
+}
 
 //-----------------------------------------------------
 
@@ -280,6 +358,12 @@ int main(){
                 printf("O comando mkdir requer um nome de diretório!\n");
             }else{
                 mkdir(argumento);
+            }
+        }else if(strcmp(comando, "unlink") == 0){
+            if(strlen(argumento) == 0){
+                printf("O comando unlink requer um nome de arquivo ou diretório!\n");
+            }else{
+                unlink(argumento);
             }
         }else if(strcmp(comando, "exit") == 0){
             printf("Saindo...\n");

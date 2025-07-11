@@ -38,5 +38,6 @@ void load();
 void ls();
 void create(char *filename);
 void mkdir(char *dirname);
+void unlink(char *name);
 
 
