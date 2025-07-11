@@ -25,13 +25,17 @@ int main(){
         }else if(strcmp(comando, "load") == 0){
             load();
         }else if(strcmp(comando, "ls") == 0){
-            ls();
+            if(strlen(argumento1) == 0){
+                ls("/"); 
+            }else{
+                ls(argumento1); 
+            }
         }else if(strcmp(comando, "create") == 0){
             if(strlen(argumento1) == 0){
                 printf("O comando create requer um nome de arquivo!\n");
             }else{
                 create(argumento1);
-        }
+            }
         }else if(strcmp(comando, "mkdir") == 0){
             if(strlen(argumento1) == 0){
                 printf("O comando mkdir requer um nome de diretório!\n");

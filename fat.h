@@ -1,3 +1,4 @@
+// fat.h - VERSÃO FINAL E COMPLETA
 #ifndef FAT_H
 #define FAT_H
 
@@ -6,8 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-//Constantes
-
+// --- Constantes ---
 #define TAM_SETOR 512 
 #define CLUSTER_SIZE 1024 
 #define NUM_CLUSTERS 4096 
@@ -19,8 +19,7 @@
 #define FAT_CLUSTER_RESERVADO 0xFFFE 
 #define FAT_EOF 0xFFFF 
 
-//Estruturas e Tipos
-
+// --- Estruturas e Tipos ---
 typedef struct{
     uint8_t filename[18]; 
     uint8_t attributes; 
@@ -34,23 +33,37 @@ typedef union{
     uint8_t data[CLUSTER_SIZE]; 
 }data_cluster_t;
 
-//Variáveis Globais 
+typedef struct {
+    int found;
+    dir_entry_t entry;
+    int parent_cluster_idx;
+    int entry_idx_in_parent;
+} find_result_t;
 
+// --- Variáveis Globais ---
 extern uint16_t fat[NUM_CLUSTERS];
 extern data_cluster_t data_cluster;
 extern int sistema_carregado;
 
-//Protótipos das Funções
+// --- Protótipos das Funções ---
 
+// Comandos do Shell (em fat_commands.c)
 void init(); 
 void load(); 
-void ls(); 
+void ls(const char* path); 
 void create(char *filename); 
 void mkdir(char *dirname); 
 void unlink(char *name); 
-void write_fat(FILE *f);
 void write(char *filename, char *text);
 void append(char *filename, char *text);
 void read(char *filename);
+
+// Funções Auxiliares (em fat_helpers.c)
+void write_fat(FILE *f);
+int find_free_cluster();
+int find_entry_idx_by_name(const char* name, data_cluster_t* cluster_data);
+int find_free_entry_idx(data_cluster_t* cluster_data);
+void separate_path(const char* full_path, char* parent_path, char* child_name);
+find_result_t find_entry_by_path(const char* path);
 
 #endif
