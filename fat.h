@@ -48,5 +48,9 @@ void ls();
 void create(char *filename); 
 void mkdir(char *dirname); 
 void unlink(char *name); 
+void write_fat(FILE *f);
+void write(char *filename, char *text);
+void append(char *filename, char *text);
+void read(char *filename);
 
 #endif
