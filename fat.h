@@ -6,7 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// --- Constantes ---
+//Constantes
+
 #define TAM_SETOR 512 
 #define CLUSTER_SIZE 1024 
 #define NUM_CLUSTERS 4096 
