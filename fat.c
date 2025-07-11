@@ -100,25 +100,193 @@ void ls(){
     }
 }
 
+void create(char *filename){
+    if(!sistema_carregado){
+        printf("O sistema de arquivos não foi carregado. Execute 'load'.\n");
+        return;
+    }
+
+    if(strlen(filename) > 17){
+        printf("Nome de arquivo muito longo! Máximo 17 caracteres.\n");
+        return;
+    }
+
+    FILE *f = fopen("fat.part", "r+b");
+    if(f == NULL){
+        perror("Erro ao abrir o arquivo fat.part");
+        return;
+    }
+
+    long int offset_raiz = 9*CLUSTER_SIZE;
+    fseek(f, offset_raiz, SEEK_SET);
+    fread(&data_cluster, CLUSTER_SIZE, 1, f);
+
+    int entrada_livre_idx = -1;
+    int entradas_por_cluster = CLUSTER_SIZE / sizeof(dir_entry_t);
+
+    for(int i = 0; i < entradas_por_cluster; i++){
+        if(data_cluster.dir[i].filename[0] == 0x00){
+            if(strcmp((char*)data_cluster.dir[i].filename, filename) == 0){
+                printf("Erro: Arquivo ou diretório '%s' já existe!\n", filename);
+                fclose(f);
+                return;
+            }
+            if(data_cluster.dir[i].filename[0] == 0x00 && entrada_livre_idx == -1){
+                entrada_livre_idx = i;
+            }
+        }
+    }
+
+    if(entrada_livre_idx == -1){
+        printf("Erro: Diretório raiz cheio!\n");
+        fclose(f);
+        return;
+    }
+
+    dir_entry_t *nova_entrada = &data_cluster.dir[entrada_livre_idx];
+    strcpy((char*)nova_entrada->filename, filename);
+    nova_entrada->attributes = 0;
+    nova_entrada->size = 0;
+    nova_entrada->first_block = 0;
+
+    fseek(f, offset_raiz, SEEK_SET);
+    fwrite(&data_cluster, CLUSTER_SIZE, 1, f);
+
+    fclose(f);
+    printf("Arquivo '%s' criado com sucesso.\n", filename);
+}
+
+int find_free_cluster(){
+    for(int i = 10; i < NUM_CLUSTERS; i++){
+        if(fat[i] == FAT_CLUSTER_LIVRE){
+            return i;
+        }
+    }
+    return -1; // Nenhum cluster livre encontrado
+}
+
+void write_fat(){
+    FILE *f = fopen("fat.part", "r+b");
+    if(f == NULL){
+        perror("Erro ao abrir o arquivo fat.part");
+        return;
+    }
+    fseek(f, CLUSTER_SIZE, SEEK_SET);
+    fwrite(fat, sizeof(fat), 1, f);
+    fclose(f);
+}
+
+void mkdir(char *dirname){
+    if(!sistema_carregado){
+        printf("O sistema de arquivos não foi carregado. Execute 'load'.\n");
+        return;
+    }
+
+    if(strlen(dirname) > 17){
+        printf("Nome de diretório muito longo! Máximo 17 caracteres.\n");
+        return;
+    }
+
+    int free_cluster_idx = find_free_cluster();
+    if(free_cluster_idx == -1){
+        printf("Erro: Não há clusters livres disponíveis.\n");
+        return;
+    }
+
+    FILE *f = fopen("fat.part", "r+b");
+    if(f == NULL){
+        perror("Erro ao abrir o arquivo fat.part");
+        return;
+    }
+
+    long int offset_raiz = 9 * CLUSTER_SIZE;
+    fseek(f, offset_raiz, SEEK_SET);
+    fread(&data_cluster, CLUSTER_SIZE, 1, f);
+
+    int entrada_livre_idx = -1;
+    int entradas_por_cluster = CLUSTER_SIZE / sizeof(dir_entry_t);
+
+    for(int i = 0; i < entradas_por_cluster; i++){
+        if(strcmp((char*)data_cluster.dir[i].filename, dirname) == 0){
+            printf("Erro: Diretório '%s' já existe!\n", dirname);
+            fclose(f);
+            return;
+        }
+        if(data_cluster.dir[i].filename[0] == 0x00 && entrada_livre_idx == -1){
+            entrada_livre_idx = i;
+        }
+    }
+    if(entrada_livre_idx == -1){
+        printf("Erro: Diretório raiz cheio!\n");
+        fclose(f);
+        return;
+    }
+    fat[free_cluster_idx] = FAT_EOF;
+    write_fat();
+
+    dir_entry_t *nova_entrada = &data_cluster.dir[entrada_livre_idx];
+    strcpy((char*)nova_entrada->filename, dirname);
+    nova_entrada->attributes = 1; // Diretório
+    nova_entrada->size = 0;
+    nova_entrada->first_block = (uint16_t)free_cluster_idx;
+
+    fseek(f, offset_raiz, SEEK_SET);
+    fwrite(&data_cluster, CLUSTER_SIZE, 1, f);
+
+    uint8_t empty_cluster[CLUSTER_SIZE];
+    memset(empty_cluster, 0x00, CLUSTER_SIZE);
+    fseek(f, free_cluster_idx * CLUSTER_SIZE, SEEK_SET);
+    fwrite(empty_cluster, CLUSTER_SIZE, 1, f);
+
+    fclose(f);
+    printf("Diretório '%s' criado com sucesso.\n", dirname);
+}
+
+
+//-----------------------------------------------------
+
 int main(){
+
+    char linha_inteira[200];
     char comando[100];
     char argumento[100];
+
     while(1){
         printf("> ");
-        scanf("%s", comando);
+
+        if(fgets(linha_inteira, sizeof(linha_inteira), stdin) == NULL){
+            break;
+        }
+
+        memset(comando, 0, sizeof(comando));
+        memset(argumento, 0, sizeof(argumento));
+
+        sscanf(linha_inteira, "%s %s", comando, argumento);
+
         if(strcmp(comando, "init") == 0){
             init();
         }else if(strcmp(comando, "load") == 0){
             load();
         }else if(strcmp(comando, "ls") == 0){
             ls();
+        }else if(strcmp(comando, "create") == 0){
+            if(strlen(argumento) == 0){
+                printf("O comando create requer um nome de arquivo!\n");
+            }else{
+                create(argumento);
+            }
+        }else if(strcmp(comando, "mkdir") == 0){
+            if(strlen(argumento) == 0){
+                printf("O comando mkdir requer um nome de diretório!\n");
+            }else{
+                mkdir(argumento);
+            }
         }else if(strcmp(comando, "exit") == 0){
             printf("Saindo...\n");
             break; 
-        }else{
+        }else if(strlen(comando) > 0){
             printf("Comando desconhecido: %s\n", comando);
         }
-        while(getchar() != '\n');
     }
     return 0;
 }

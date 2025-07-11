@@ -36,6 +36,7 @@ union{
 void init();
 void load();
 void ls();
-
+void create(char *filename);
+void mkdir(char *dirname);
 
 
