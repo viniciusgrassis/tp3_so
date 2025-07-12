@@ -110,7 +110,7 @@ void create(char *full_path){
     }
 
     find_result_t parent_dir_info = find_entry_by_path(parent_path);
-    if (!parent_dir_info.found || parent_dir_info.entry.attributes != 1) {
+    if(!parent_dir_info.found || parent_dir_info.entry.attributes != 1){
         printf("Erro: O caminho '%s' não é um diretório válido.\n", parent_path);
         return;
     }
@@ -120,14 +120,14 @@ void create(char *full_path){
     fseek(f, parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fread(&data_cluster, CLUSTER_SIZE, 1, f);
 
-    if (find_entry_idx_by_name(new_filename, &data_cluster) != -1) {
+    if(find_entry_idx_by_name(new_filename, &data_cluster) != -1){
         printf("Erro: Arquivo ou diretório '%s' já existe neste caminho.\n", new_filename);
         fclose(f);
         return;
     }
 
     int free_entry_idx = find_free_entry_idx(&data_cluster);
-    if (free_entry_idx == -1) {
+    if(free_entry_idx == -1){
         printf("Erro: Não há espaço livre no diretório '%s'.\n", parent_path);
         fclose(f);
         return;
@@ -162,7 +162,7 @@ void mkdir(char *full_path){
 
     // Encontra o diretório pai
     find_result_t parent_dir_info = find_entry_by_path(parent_path);
-    if (!parent_dir_info.found || parent_dir_info.entry.attributes != 1) {
+    if(!parent_dir_info.found || parent_dir_info.entry.attributes != 1){
         printf("Erro: O caminho '%s' não é um diretório válido.\n", parent_path);
         return;
     }
@@ -179,7 +179,7 @@ void mkdir(char *full_path){
     fread(&data_cluster, CLUSTER_SIZE, 1, f);
 
     // Verifica se já existe uma entrada com o mesmo nome no diretório pai
-    if (find_entry_idx_by_name(new_dirname, &data_cluster) != -1) {
+    if(find_entry_idx_by_name(new_dirname, &data_cluster) != -1){
         printf("Erro: Diretório '%s' já existe neste caminho.\n", new_dirname);
         fclose(f);
         return;
@@ -187,7 +187,7 @@ void mkdir(char *full_path){
 
     // Encontra uma entrada livre no diretório pai
     int free_entry_idx = find_free_entry_idx(&data_cluster);
-    if (free_entry_idx == -1) {
+    if(free_entry_idx == -1){
         printf("Erro: Não há espaço livre no diretório '%s'.\n", parent_path);
         fclose(f);
         return;
@@ -263,7 +263,7 @@ void unlink(char *full_path){
         write_fat(f); 
         printf("Arquivo '%s' apagado.\n", full_path);
 
-    } else { // É um diretório
+    }else{ // É um diretório
         data_cluster_t dir_content;
         fseek(f, entry->first_block * CLUSTER_SIZE, SEEK_SET);
         fread(&dir_content, CLUSTER_SIZE, 1, f);
@@ -420,42 +420,42 @@ void append(char *full_path, char *text){
     }
     int bytes_no_ultimo_cluster = entry->size % CLUSTER_SIZE;
     int espaco_livre_no_cluster = 0;
-    if (entry->size > 0 && bytes_no_ultimo_cluster > 0) {
+    if(entry->size > 0 && bytes_no_ultimo_cluster > 0){
         espaco_livre_no_cluster = CLUSTER_SIZE - bytes_no_ultimo_cluster;
     }
     char *text_ptr = text;
     int bytes_restantes_para_escrever = text_len;
     uint16_t last_cluster = entry->first_block;
-    if (last_cluster != 0) {
-        while (fat[last_cluster] != FAT_EOF) {
+    if(last_cluster != 0){
+        while(fat[last_cluster] != FAT_EOF){
             last_cluster = fat[last_cluster];
         }
     }
-    if (espaco_livre_no_cluster > 0) {
+    if(espaco_livre_no_cluster > 0){
         int bytes_para_preencher = (bytes_restantes_para_escrever < espaco_livre_no_cluster) ? bytes_restantes_para_escrever : espaco_livre_no_cluster;
         fseek(f, last_cluster * CLUSTER_SIZE + bytes_no_ultimo_cluster, SEEK_SET);
         fwrite(text_ptr, 1, bytes_para_preencher, f);
         text_ptr += bytes_para_preencher;
         bytes_restantes_para_escrever -= bytes_para_preencher;
     }
-    if (bytes_restantes_para_escrever > 0) {
+    if(bytes_restantes_para_escrever > 0){
         int clusters_needed = (bytes_restantes_para_escrever + CLUSTER_SIZE - 1) / CLUSTER_SIZE;
         int *new_clusters = malloc(clusters_needed * sizeof(int));
-        for (int i = 0; i < clusters_needed; i++) {
+        for(int i = 0; i < clusters_needed; i++){
             new_clusters[i] = find_free_cluster();
             if (new_clusters[i] == -1) { /* ... */ }
             fat[new_clusters[i]] = FAT_EOF;
         }
-        if (entry->first_block == 0) {
+        if(entry->first_block == 0){
             entry->first_block = new_clusters[0];
-        } else {
+        }else{
             fat[last_cluster] = new_clusters[0];
         }
-        for (int i = 0; i < clusters_needed - 1; i++) {
+        for(int i = 0; i < clusters_needed - 1; i++){
             fat[new_clusters[i]] = new_clusters[i + 1];
         }
         int remaining = bytes_restantes_para_escrever;
-        for (int i = 0; i < clusters_needed; i++) {
+        for(int i = 0; i < clusters_needed; i++){
             fseek(f, new_clusters[i] * CLUSTER_SIZE, SEEK_SET);
             int to_write = (remaining > CLUSTER_SIZE) ? CLUSTER_SIZE : remaining;
             fwrite(text_ptr, 1, to_write, f);
@@ -493,7 +493,7 @@ void read(char *full_path){
     }
     
     FILE *f = fopen("fat.part", "rb");
-    if (f == NULL) {
+    if(f == NULL){
         perror("Erro ao abrir o arquivo fat.part");
         return;
     }

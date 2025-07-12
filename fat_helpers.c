@@ -4,11 +4,11 @@ uint16_t fat[NUM_CLUSTERS];
 data_cluster_t data_cluster;
 int sistema_carregado = 0;
 
-int find_entry_idx_by_name(const char* name, data_cluster_t* cluster_data) {
+int find_entry_idx_by_name(const char* name, data_cluster_t* cluster_data){
     int entradas_por_cluster = CLUSTER_SIZE / sizeof(dir_entry_t);
-    for (int i = 0; i < entradas_por_cluster; i++) {
-        if (cluster_data->dir[i].filename[0] != 0x00 &&
-            strcmp((char*)cluster_data->dir[i].filename, name) == 0) {
+    for(int i = 0; i < entradas_por_cluster; i++) {
+        if(cluster_data->dir[i].filename[0] != 0x00 &&
+            strcmp((char*)cluster_data->dir[i].filename, name) == 0){
             return i;
         }
     }
@@ -16,10 +16,10 @@ int find_entry_idx_by_name(const char* name, data_cluster_t* cluster_data) {
 }
 
 // Retorna o ÍNDICE da primeira entrada livre, ou -1 se estiver cheio.
-int find_free_entry_idx(data_cluster_t* cluster_data) {
+int find_free_entry_idx(data_cluster_t* cluster_data){
     int entradas_por_cluster = CLUSTER_SIZE / sizeof(dir_entry_t);
-    for (int i = 0; i < entradas_por_cluster; i++) {
-        if (cluster_data->dir[i].filename[0] == 0x00) {
+    for(int i = 0; i < entradas_por_cluster; i++){
+        if(cluster_data->dir[i].filename[0] == 0x00){
             return i;
         }
     }
@@ -96,17 +96,17 @@ find_result_t find_entry_by_path(const char* path){
     return result;
 }
 
-void separate_path(const char* full_path, char* parent_path, char* child_name) {
+void separate_path(const char* full_path, char* parent_path, char* child_name){
     // strrchr encontra a última ocorrência do caractere '/'
     const char *last_slash = strrchr(full_path, '/');
     
-    if (last_slash == NULL) { // Não há barras, é um arquivo/dir na raiz
+    if(last_slash == NULL){ // Não há barras, é um arquivo/dir na raiz
         strcpy(parent_path, "/");
         strcpy(child_name, full_path);
-    } else if (last_slash == full_path) { // O caminho é "/arquivo"
+    }else if(last_slash == full_path){ // O caminho é "/arquivo"
         strcpy(parent_path, "/");
         strcpy(child_name, last_slash + 1);
-    } else { // O caminho é "/pasta/arquivo"
+    }else{ // O caminho é "/pasta/arquivo"
         // Copia tudo antes da última barra para parent_path
         strncpy(parent_path, full_path, last_slash - full_path);
         parent_path[last_slash - full_path] = '\0';

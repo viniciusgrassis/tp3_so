@@ -11,7 +11,7 @@ int main(){
         printf("> ");
 
         if(fgets(linha_inteira, sizeof(linha_inteira), stdin) == NULL){
-        break;
+            break;
         }
 
         memset(comando, 0, sizeof(comando));
