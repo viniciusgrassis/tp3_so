@@ -51,7 +51,6 @@ int main(){
         }else if(strcmp(comando, "write") == 0){ 
             if(strlen(argumento1) == 0 || strlen(argumento2) == 0){
                 printf("O comando write requer um nome de arquivo e um texto.\n");
-                printf("Ex: write arquivo.txt ola_mundo\n");
             }else{
                 write(argumento1, argumento2);
             }
