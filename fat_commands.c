@@ -1,5 +1,8 @@
 #include "fat.h"
 
+
+/*Função para criar o arquivo FAT. Responsável por preparar e escrever a FAT,
+assim como configurar valores iniciais da FAT e escrever o diretório raiz.*/
 void init(){
     FILE *f = fopen("fat.part", "wb");
     if(f == NULL){
@@ -30,6 +33,8 @@ void init(){
     printf("Sistema de arquivos FAT inicializado com sucesso.\n");
 }
 
+
+/*Responsável por ler a FAT do arquivo e carregá-la na variável global fat*/
 void load(){
     FILE *f = fopen("fat.part", "rb");
     if(f == NULL){
@@ -49,6 +54,8 @@ void load(){
     printf("Sistema de arquivos FAT carregado com sucesso.\n");
 }
 
+/*Lê e exibe as entradas de uma determinado diretório, recebe um caminho
+como argumento, em caso de nenhum, listará o diretório raiz.*/
 void ls(const char* path){
     if(!sistema_carregado){
         printf("Sistema de arquivos não carregado. Execute 'load' primeiro.\n");
@@ -60,7 +67,7 @@ void ls(const char* path){
         return;
     }
 
-    // Se for um arquivo, apenas exibe suas informações
+    //Se for um arquivo, apenas exibe suas informações
     if(result.entry.attributes == 0) {
         printf("Attr| Tamanho | Nome\n");
         printf("----|---------|----\n");
@@ -71,7 +78,7 @@ void ls(const char* path){
         return;
     }
 
-    // Se for um diretório, lista seu conteúdo
+    //Se for um diretório, lista seu conteúdo
     uint16_t cluster_idx = result.entry.first_block;
     data_cluster_t dir_content;
     FILE *f = fopen("fat.part", "rb");
@@ -97,8 +104,10 @@ void ls(const char* path){
     }
 }
 
+/*Para criar um novo arquivo, envolve procurar uma entrada livre e verificar
+se o diretório já está cheio ou não. */
 void create(char *full_path){
-    if(!sistema_carregado){ /*...*/ return; }
+    if(!sistema_carregado) return;
 
     char parent_path[256];
     char new_filename[18];
@@ -145,6 +154,8 @@ void create(char *full_path){
     printf("Arquivo '%s' criado com sucesso.\n", full_path);
 }
 
+/*Função para a criação de um novo diretório. O atributo distingue da
+criação de um novo arquivo*/
 void mkdir(char *full_path){
     if(!sistema_carregado){
         printf("O sistema de arquivos não foi carregado. Execute 'load'.\n");
@@ -160,7 +171,6 @@ void mkdir(char *full_path){
         return;
     }
 
-    // Encontra o diretório pai
     find_result_t parent_dir_info = find_entry_by_path(parent_path);
     if(!parent_dir_info.found || parent_dir_info.entry.attributes != 1){
         printf("Erro: O caminho '%s' não é um diretório válido.\n", parent_path);
@@ -173,19 +183,16 @@ void mkdir(char *full_path){
         return;
     }
 
-    // Carrega os dados do diretório pai
     uint16_t parent_cluster_idx = parent_dir_info.entry.first_block;
     fseek(f, parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fread(&data_cluster, CLUSTER_SIZE, 1, f);
 
-    // Verifica se já existe uma entrada com o mesmo nome no diretório pai
     if(find_entry_idx_by_name(new_dirname, &data_cluster) != -1){
         printf("Erro: Diretório '%s' já existe neste caminho.\n", new_dirname);
         fclose(f);
         return;
     }
 
-    // Encontra uma entrada livre no diretório pai
     int free_entry_idx = find_free_entry_idx(&data_cluster);
     if(free_entry_idx == -1){
         printf("Erro: Não há espaço livre no diretório '%s'.\n", parent_path);
@@ -193,7 +200,6 @@ void mkdir(char *full_path){
         return;
     }
     
-    // Encontra um cluster de dados livre para o novo diretório
     int free_cluster_idx = find_free_cluster();
     if(free_cluster_idx == -1){
         printf("Erro: Não há clusters livres disponíveis.\n");
@@ -201,22 +207,18 @@ void mkdir(char *full_path){
         return;
     }
 
-    // Atualiza a FAT e salva no disco
     fat[free_cluster_idx] = FAT_EOF;
     write_fat(f);
 
-    // Preenche a entrada de diretório no pai
     dir_entry_t *nova_entrada = &data_cluster.dir[free_entry_idx];
     strcpy((char*)nova_entrada->filename, new_dirname);
-    nova_entrada->attributes = 1; // Atributo 1 para DIRETÓRIO
+    nova_entrada->attributes = 1; 
     nova_entrada->size = 0;
     nova_entrada->first_block = (uint16_t)free_cluster_idx;
     
-    // Salva o diretório pai modificado
     fseek(f, parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fwrite(&data_cluster, CLUSTER_SIZE, 1, f);
 
-    // Limpa o cluster do novo diretório (inicializa com zeros)
     uint8_t empty_cluster[CLUSTER_SIZE];
     memset(empty_cluster, 0x00, CLUSTER_SIZE);
     fseek(f, free_cluster_idx * CLUSTER_SIZE, SEEK_SET);
@@ -226,13 +228,14 @@ void mkdir(char *full_path){
     printf("Diretório '%s' criado com sucesso.\n", full_path);
 }
 
+/*A partir do caminho, usada para apagar arquivos e diretórios
+de qualquer lugar do sistema*/
 void unlink(char *full_path){
     if(!sistema_carregado){
         printf("Sistema de arquivos não carregado. Execute 'load' primeiro.\n");
         return;
     }
 
-    // Usa nossa função mestra para encontrar o alvo
     find_result_t result = find_entry_by_path(full_path);
 
     if(!result.found){
@@ -246,11 +249,9 @@ void unlink(char *full_path){
         return;
     }
     
-    // Carrega o diretório PAI do alvo
     fseek(f, result.parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fread(&data_cluster, CLUSTER_SIZE, 1, f);
 
-    // Pega um ponteiro para a entrada que será apagada
     dir_entry_t *entry = &data_cluster.dir[result.entry_idx_in_parent];
     
     if(entry->attributes == 0){ // É um arquivo
@@ -285,7 +286,6 @@ void unlink(char *full_path){
         printf("Diretorio '%s' apagado.\n", full_path);
     }
 
-    // Zera a entrada no diretório pai e a salva no disco
     memset(entry, 0, sizeof(dir_entry_t));
     fseek(f, result.parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fwrite(&data_cluster, CLUSTER_SIZE, 1, f);
@@ -293,14 +293,14 @@ void unlink(char *full_path){
     fclose(f);
 }
 
-
+/*Função write para escrever o conteúdo de um arquivo. Recebe o 
+caminho e o texto a ser escrito*/
 void write(char *full_path, char *text){
     if(!sistema_carregado){
         printf("Sistema de arquivos não carregado. Execute 'load' primeiro.\n");
         return;
     }
     
-    // Usa a função mestra para encontrar o arquivo
     find_result_t result = find_entry_by_path(full_path);
 
     if(!result.found){
@@ -318,15 +318,12 @@ void write(char *full_path, char *text){
         return;
     }
 
-    // Carrega o diretório PAI do arquivo
     uint16_t parent_cluster_idx = result.parent_cluster_idx;
     fseek(f, parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fread(&data_cluster, CLUSTER_SIZE, 1, f);
 
-    // Pega o ponteiro para a entrada do arquivo dentro do diretório pai
     dir_entry_t *entry = &data_cluster.dir[result.entry_idx_in_parent];
 
-    // O resto da lógica de 'write' (liberar clusters antigos, alocar novos, etc.) continua idêntica
     uint16_t current_cluster = entry->first_block;
     while(current_cluster != 0 && current_cluster != FAT_EOF){
         uint16_t next_cluster = fat[current_cluster];
@@ -372,7 +369,7 @@ void write(char *full_path, char *text){
         free(new_clusters);
     }
 
-    // Salva as mudanças
+    //Salva as mudanças
     write_fat(f);
     fseek(f, parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fwrite(&data_cluster, CLUSTER_SIZE, 1, f);
@@ -380,13 +377,14 @@ void write(char *full_path, char *text){
     printf("Texto escrito no arquivo '%s' com sucesso.\n", full_path);
 }
 
+/*Similar a write, com a diferença que não apaga o conteúdo do 
+arquivo, mas sim acrescenta ao final*/
 void append(char *full_path, char *text){
     if(!sistema_carregado){
         printf("Sistema de arquivos não carregado. Execute 'load' primeiro.\n");
         return;
     }
     
-    // Usa a função mestra para encontrar o arquivo
     find_result_t result = find_entry_by_path(full_path);
 
     if(!result.found){
@@ -404,15 +402,12 @@ void append(char *full_path, char *text){
         return;
     }
 
-    // Carrega o diretório PAI do arquivo
     uint16_t parent_cluster_idx = result.parent_cluster_idx;
     fseek(f, parent_cluster_idx * CLUSTER_SIZE, SEEK_SET);
     fread(&data_cluster, CLUSTER_SIZE, 1, f);
 
-    // Pega o ponteiro para a entrada do arquivo dentro do diretório pai
     dir_entry_t *entry = &data_cluster.dir[result.entry_idx_in_parent];
     
-    // O resto da lógica de 'append' continua idêntica
     int text_len = strlen(text);
     if(text_len == 0){
         fclose(f);
@@ -473,13 +468,13 @@ void append(char *full_path, char *text){
     printf("Texto adicionado ao arquivo '%s' com sucesso.\n", full_path);
 }
 
+/*Função para ler o conteúdo de um arquivo*/
 void read(char *full_path){
     if(!sistema_carregado){
         printf("Sistema de arquivos não carregado. Execute 'load' primeiro.\n");
         return;
     }
 
-    // Usa a nossa função de navegação para encontrar o arquivo
     find_result_t result = find_entry_by_path(full_path);
 
     if(!result.found){
